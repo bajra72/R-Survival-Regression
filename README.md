@@ -63,5 +63,5 @@ Kaplan-Meier analysis showed highly significant association between cancer stage
 The multivariable Cox proportional hazards model showed overall statistical significance for predicting survival (p < 2e-16), and its proportional hazards assumption held. However, coefficients for Cancer Stage were unstable. Other individual covariates in this specific model iteration did not show statistical significance.
 
 4. Factors Predicting Likelihood of Metastasis (Logistic Regression)
-
+The logistic regression model significantly improved upon a null model in predicting metastasis. However, it also suffered from severe numerical instability for Cancer Stage, with inflated odds ratios suggesting quasi-complete separation. This instability prevented reliable interpretation of other covariates, which otherwise did not show individual significance in this model.
 
