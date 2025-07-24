@@ -51,3 +51,17 @@ Predicting Metastasis: A multivariable logistic regression model was used to ass
 Count Regression (Planned/Considered):
 Predicting Chemotherapy Sessions: Given the count nature of ChemotherapySessions, Poisson or Negative Binomial regression was considered to explore factors influencing the number of sessions, depending on the observed overdispersion.
 
+# Findings
+
+1. Association between Metastasis and Tumor Size
+A Welch Two-Sample t-test revealed a highly statistically significant difference in mean tumor size between patients with and without metastasis (p < 2.2e-16). Patients with metastasis had consistently larger tumors (mean 7.32 units) compared to those without (mean 5.98 units). This suggests a strong link between increased tumor burden and the presence of metastatic disease.
+
+2. Impact of Cancer Stage on Overall Survival
+Kaplan-Meier analysis showed highly significant association between cancer stage at diagnosis and overall survival (p < 0.0001). Patients diagnosed at earlier stages, particularly Stage I, consistently exhibited  higher survival probabilities over time compared to those with advanced disease. This finding highlights the critical role of early detection in improving long-term cancer outcomes for this patient cohort.
+
+3. Independent Predictors of Overall Survival (Cox Model)
+The multivariable Cox proportional hazards model showed overall statistical significance for predicting survival (p < 2e-16), and its proportional hazards assumption held. However, coefficients for Cancer Stage were unstable. Other individual covariates in this specific model iteration did not show statistical significance.
+
+4. Factors Predicting Likelihood of Metastasis (Logistic Regression)
+
+
