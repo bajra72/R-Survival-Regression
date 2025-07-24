@@ -1,0 +1,204 @@
+install.packages("tidyverse")
+install.packages("survival")
+install.packages("survminer")
+install.packages("car")
+install.packages("gtsummary")
+install.packages("epitools")
+install.packages("dplyr")
+install.packages("mass")
+library(tidyverse)
+library(survival)
+library(survminer)
+library(car)
+library(gtsummary)
+library(epitools)
+library(dplyr)
+library(mass)
+df<-read_csv("D:\\R\\china_cancer_patients_synthetic.csv")
+view(df)
+colnames(df)
+str(df)
+
+# Modify data type
+
+df<-df%>%mutate(
+  PatientID=as.character(PatientID),
+  Gender=factor(Gender),
+  Age=as.numeric(Age),
+  Province=factor(Province),
+  Ethnicity=factor(Ethnicity),
+  TumorType=factor(TumorType),
+  CancerStage=factor(CancerStage, levels=c("I", "II", "III", "IV")),
+  DiagnosisDate=mdy(DiagnosisDate),
+  TumorSize=as.numeric(TumorSize),
+  SurgeryDate=mdy(SurgeryDate),
+  ChemotherapySessions=as.numeric(ChemotherapySessions),
+  RadiationSessions=as.numeric(RadiationSessions),
+  SurvivalStatus=factor(SurvivalStatus),
+  FollowUpMonths=as.numeric(FollowUpMonths),
+  SmokingStatus=factor(SmokingStatus, levels=c("Never", "Former", "Current")),
+  AlcoholUse=factor(AlcoholUse, levels=c("None", "Occasional", "Heavy")),
+  GeneticMutation=factor(GeneticMutation),
+  Comorbidities=na_if(Comorbidities,""))
+
+# Manage multiple answer question, and missing values
+
+df<-df%>% mutate(
+  GeneticMutation=trimws(GeneticMutation),
+  GeneticMutation=ifelse(GeneticMutation==""| GeneticMutation=="None", NA, GeneticMutation),
+  Has_GeneticMutation=ifelse(is.na(GeneticMutation),"No", "Yes"),
+  Has_GeneticMutation=factor(Has_GeneticMutation, levels=c("No","Yes")),
+  GeneticMutation=factor(GeneticMutation))
+
+df <- df %>% mutate(
+    Comorbidities = trimws(Comorbidities),
+    Comorbidities = ifelse(Comorbidities == "" | is.na(Comorbidities), "None", Comorbidities),
+    
+    Has_Comorbidities = ifelse(Comorbidities == "None", "No", "Yes"),
+    Has_Comorbidities = factor(Has_Comorbidities, levels = c("No", "Yes")),
+    
+    Comorbidity_Diabetes = factor(ifelse(str_detect(Comorbidities, "Diabetes"), "Yes", "No"), levels = c("No", "Yes")),
+    Comorbidity_Hypertension = factor(ifelse(str_detect(Comorbidities, "Hypertension"), "Yes", "No"), levels = c("No", "Yes")),
+    Comorbidity_HepatitisB = factor(ifelse(str_detect(Comorbidities, "Hepatitis B"), "Yes", "No"), levels = c("No", "Yes")),
+    
+    Comorbidity_Count = as.integer(Comorbidity_Diabetes == "Yes") +
+      as.integer(Comorbidity_Hypertension == "Yes") +
+      as.integer(Comorbidity_HepatitisB == "Yes")
+  )
+
+glimpse(df)
+
+# Categorize the values
+
+df<-df%>% mutate(
+  AgeGroup=cut(Age,
+               breaks = c(0, 30, 50,65, Inf),
+               labels = c("<=30", "31-50", "51-65", ">65"),
+               right = FALSE),
+  TumorSize_Category = cut(TumorSize,
+                           breaks = quantile(TumorSize, probs = c(0, 0.33, 0.67, 1), na.rm = TRUE),
+                           labels = c("Small", "Medium", "Large"),
+                           include.lowest = TRUE),
+  TimeToSurgeryDays = as.numeric(SurgeryDate - DiagnosisDate, units = "days")
+)
+
+
+# Distribution with gg plot
+
+df %>%
+  count(AgeGroup) %>%
+  mutate(Percent = round(100 * n / sum(n), 1)) %>%
+  arrange(desc(n))
+
+ggplot(df, aes(x = Age)) +
+  geom_histogram(binwidth = 5, fill = "salmon", color = "black") +
+  labs(title = "Age Distribution", x = "Age", y = "Count") +
+  theme_minimal()
+
+df %>%
+  count(TumorSize_Category) %>%
+  mutate(Percent = round(100 * n / sum(n), 1)) %>%
+  arrange(desc(n))
+
+ggplot(df, aes(x = TumorSize)) +
+  geom_histogram(fill = "purple", color = "black") +
+  labs(title = "Tumor Size Distribution", x = "Tumor Size (cm)", y = "Count") +
+  theme_minimal()
+
+df %>%
+  count(TumorType) %>%
+  mutate(
+    Percent = round(100 * n / sum(n), 1)
+  ) %>%
+  arrange(desc(n))
+ggplot(df, aes(x = TumorType)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Distribution of Tumor Types", x = "Tumor Type", y = "Count") +
+  theme_minimal() +
+  coord_flip()
+
+df %>%
+  count(CancerStage) %>%
+  mutate(Percent = round(100 * n / sum(n), 1)) %>%
+  arrange(CancerStage)
+ggplot(df, aes(x = CancerStage)) +
+  geom_bar(fill = "lightgreen") +
+  labs(title = "Distribution of Cancer Stages", x = "Cancer Stage", y = "Count") +
+  theme_minimal()
+
+df %>%
+  count(SurvivalStatus) %>%
+  mutate(Percent = round(100 * n / sum(n), 1)) %>%
+  arrange(desc(n))
+ggplot(df, aes(x = SurvivalStatus, fill = SurvivalStatus)) +
+  geom_bar() +
+  labs(title = "Survival Status Distribution", x = "Survival Status", y = "Count") +
+  theme_minimal()
+
+# Statistical Tests
+
+R1: Do patients with Metastasis have larger tumors on average?
+t.test(TumorSize ~ Metastasis, data = df)
+
+ggplot(df, aes(x = Metastasis, y = TumorSize, fill = Metastasis)) +
+  geom_boxplot() +
+  labs(title = "Tumor Size by Metastasis Status",
+       x = "Metastasis", y = "Tumor Size (cm)") +
+  theme_minimal()
+
+R2: Does Cancer Stage affect overall survival?
+df_survival <- df %>%
+  mutate(
+    Event = ifelse(SurvivalStatus == "Deceased", 1, 0)
+  ) %>%
+  filter(!is.na(FollowUpMonths) & !is.na(Event) & !is.na(CancerStage))
+fit_km_stage <- survfit(Surv(FollowUpMonths, Event) ~ CancerStage, data = df_survival)
+ggsurvplot(fit_km_stage,
+           data = df_survival,
+           pval = TRUE,             
+           conf.int = TRUE,         
+           risk.table = TRUE,       
+           risk.table.col = "strata",
+           linetype = "strata",
+           surv.median.line = "hv", 
+           ggtheme = theme_minimal(),
+           title = "Overall Survival by Cancer Stage",
+           legend.title = "Cancer Stage",
+           xlab = "Follow-up Time (Months)",
+           ylab = "Survival Probability")
+
+R3: What are the independent predictors of overall survival? (Cox Proportional Hazards Model) 
+df_cox <- df %>%
+  mutate(Event = ifelse(SurvivalStatus == "Deceased", 1, 0)) %>%
+  filter(!is.na(FollowUpMonths) & !is.na(Event) &
+           !is.na(Age) & !is.na(Gender) & !is.na(TumorSize) &
+           !is.na(Metastasis) & !is.na(CancerStage) &
+           !is.na(TreatmentType) & !is.na(SmokingStatus))
+
+cox_model <- coxph(Surv(FollowUpMonths, Event) ~ Age + Gender + TumorSize +
+                     Metastasis + CancerStage + TreatmentType + SmokingStatus,
+                   data = df_cox)
+summary(cox_model)
+cox.zph(cox_model)
+
+R4: What factors predict the likelihood of Metastasis? (Logistic Regression) 
+df_logistic <- df %>%
+  filter(!is.na(Metastasis) & !is.na(TumorSize) & !is.na(Age) &
+           !is.na(TumorType) & !is.na(CancerStage) & !is.na(GeneticMutation)) %>%
+  mutate(Metastasis = factor(Metastasis))
+
+levels(df_logistic$Metastasis)
+
+table(df_logistic$Metastasis)
+
+logistic_model <- glm(Metastasis ~ TumorSize + Age + TumorType + CancerStage + GeneticMutation,
+                      data = df_logistic,
+                      family = "binomial")
+summary(logistic_model)
+exp(coef(logistic_model))
+exp(confint(logistic_model))
+
+
+
+
+
